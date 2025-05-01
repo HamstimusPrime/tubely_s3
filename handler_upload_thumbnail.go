@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -44,7 +45,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	mediaType := header.Header.Get("Content-Type")
+	contentTypeHeader := header.Header.Get("Content-Type")
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to fetch video", err)
@@ -56,14 +57,18 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	//store thumbnail image file in file-Path
 	//get extension of file from client
-	extensions, err := mime.ExtensionsByType(mediaType)
+	contentType, _, err := mime.ParseMediaType(contentTypeHeader)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "file extension error", err)
 		return
 	}
-	fileExtension := extensions[0]
+
+	if contentType != "image/jpeg" && contentType != "image/png" {
+		respondWithError(w, http.StatusBadRequest, "invalid file format", err)
+		return
+	}
+	fileExtension := strings.Split(contentType, "/")[1]
 
 	//create file path for thumbnail using root dir, videoID and extension
 	thumbnailFilePath := filepath.Join(cfg.assetsRoot, videoIDString+"."+fileExtension)
