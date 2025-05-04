@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
+
 	"fmt"
 	"io"
 	"mime"
@@ -47,7 +48,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	contentTypeHeader := header.Header.Get("Content-Type")
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to fetch video", err)
@@ -60,6 +60,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	//get extension of file from client
+	contentTypeHeader := header.Header.Get("Content-Type")
 	contentType, _, err := mime.ParseMediaType(contentTypeHeader)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "file extension error", err)
