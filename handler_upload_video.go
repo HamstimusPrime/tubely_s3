@@ -73,10 +73,10 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer os.Remove(tempVidFile.Name())
 	defer tempVidFile.Close()
 
-	//copy uploaded image into newly created temp file
+	//copy uploaded video into newly created temp file
 	_, err = io.Copy(tempVidFile, vidFile)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "unable to save thumbnail ", err)
+		respondWithError(w, http.StatusBadRequest, "unable to save video file ", err)
 		return
 	}
 
@@ -85,12 +85,30 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		log.Fatalf("unable to reset pointer to temp file: %v", err)
 	}
 
+	// prefix key with string based off of vidoe aspect ratio
+	aspectRatio, err := getVideoAspectRatio(tempVidFile.Name())
+	if err != nil {
+		log.Fatalf("unable to determine vid aspect ratio, err: %v", err)
+	}
+
+	var prefix string
+	switch aspectRatio {
+	case "16:9":
+		prefix = "landscape"
+	case "9:16":
+		prefix = "portrait"
+	default:
+		prefix = "other"
+	}
+
+	fmt.Printf("Aspect Ratio is: %v\nprefix is: %v\n", aspectRatio, prefix)
+
 	bucket := os.Getenv("S3_BUCKET")
 
 	//generate 64 bit random hexdecimal number, convert to string and use as file key
 	randID := make([]byte, 32)
 	rand.Read(randID)
-	fileKey := hex.EncodeToString(randID)
+	fileKey := prefix + "/" + hex.EncodeToString(randID)
 
 	putObjectInput := s3.PutObjectInput{
 		Bucket:      &bucket,

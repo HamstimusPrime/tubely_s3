@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
-
 	"fmt"
 	"io"
 	"mime"
