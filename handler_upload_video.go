@@ -80,13 +80,27 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	//set pointer to start of video so video file is read from the beginning
 	_, err = tempVidFile.Seek(0, io.SeekStart)
 	if err != nil {
 		log.Fatalf("unable to reset pointer to temp file: %v", err)
 	}
 
+	//process vid to enable fast start feature
+	processedVidURL, err := processVideoForFastStart(tempVidFile.Name())
+	if err != nil {
+		log.Fatalf("unable to process video for fast start, err: %v", err)
+	}
+
+	processedVid, err := os.Open(processedVidURL)
+	if err != nil {
+		log.Fatalf("unable to ope processed video, err: %v", err)
+	}
+	defer os.Remove(processedVidURL)
+	defer processedVid.Close()
+
 	// prefix key with string based off of vidoe aspect ratio
-	aspectRatio, err := getVideoAspectRatio(tempVidFile.Name())
+	aspectRatio, err := getVideoAspectRatio(processedVidURL)
 	if err != nil {
 		log.Fatalf("unable to determine vid aspect ratio, err: %v", err)
 	}
@@ -113,11 +127,13 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	putObjectInput := s3.PutObjectInput{
 		Bucket:      &bucket,
 		Key:         &fileKey,
-		Body:        tempVidFile,
+		Body:        processedVid,
 		ContentType: &contentType,
 	}
+	//upload video to s3
 	cfg.s3client.PutObject(context.Background(), &putObjectInput)
 
+	//update vid URL in DB
 	vidURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", bucket, cfg.s3Region, fileKey)
 	videoDB.VideoURL = &vidURL
 
